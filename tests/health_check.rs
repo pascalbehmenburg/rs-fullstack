@@ -41,7 +41,7 @@ async fn v1_users_register_is_200_for_valid_data(address: String) {
         .post(&format!("{}/users/register", &address))
         .header("Content-Type", "application/json")
         .body(
-            "{data: {\"name\": \"test\", \"email\": \"test%40test.test\", \"password\": \"test\"}}",
+            "{\"data\": {\"name\": \"test\", \"email\": \"test@test.test\", \"password\": \"test\"}}",
         )
         .send()
         .await
