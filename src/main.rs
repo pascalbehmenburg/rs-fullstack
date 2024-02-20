@@ -1,4 +1,5 @@
-use rs_fullstack::run;
+use rs_fullstack::config::get_config;
+use rs_fullstack::startup;
 use std::net::TcpListener;
 
 // TODO implement user
@@ -11,6 +12,8 @@ use std::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let address = TcpListener::bind("127.0.0.1:8000")?;
-    run(address)?.await
+    let config = get_config().expect("Failed to read configuration.");
+    let address = format!("127.0.0.1:{}", config.application_port);
+    let listener = TcpListener::bind(address)?;
+    startup::run(listener)?.await
 }
