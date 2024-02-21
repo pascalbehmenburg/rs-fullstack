@@ -1,5 +1,7 @@
-use rs_fullstack::run;
+use rs_fullstack::{get_config, run};
 use rstest::{fixture, rstest};
+use sqlx::{Connection, PgConnection};
+use std::future::Future;
 use std::net::TcpListener;
 
 /// Used to spawn a backend app and receive its address for each
@@ -22,6 +24,18 @@ fn backend_address() -> String {
     format!("http://127.0.0.1:{}", port)
 }
 
+#[fixture]
+async fn postgres_connection() -> PgConnection {
+    PgConnection::connect(
+        &get_config()
+            .expect("Failed to read config.")
+            .database
+            .connection_string(),
+    )
+    .await
+    .expect("Failed to connect to Postgres")
+}
+
 #[rstest]
 #[tokio::test]
 async fn health_check_works(backend_address: String) {
@@ -36,8 +50,12 @@ async fn health_check_works(backend_address: String) {
 }
 
 #[rstest]
+#[awt]
 #[tokio::test]
-async fn v1_users_register_is_200_for_valid_data(backend_address: String) {
+async fn v1_users_register_is_200_for_valid_data<T: Future<Output = PgConnection>>(
+    backend_address: String,
+    mut postgres_connection: T,
+) {
     let response = reqwest::Client::new()
         .post(&format!("{}/users/register", &backend_address))
         .header("Content-Type", "application/json")
@@ -48,7 +66,15 @@ async fn v1_users_register_is_200_for_valid_data(backend_address: String) {
         .await
         .expect("Failed to execute request.");
 
-    assert_eq!(200, response.status().as_u16());
+    assert!(200 == response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT name, email FROM users")
+        .fetch_one(&mut postgres_connection.await)
+        .await
+        .expect("Failed to fetch saved subscription");
+
+    assert!(saved.name == "test");
+    assert!(saved.email == "test@test.test");
 }
 
 #[rstest]
