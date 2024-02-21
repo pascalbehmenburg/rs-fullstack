@@ -59,9 +59,7 @@ async fn v1_users_register_is_200_for_valid_data<T: Future<Output = PgConnection
     let response = reqwest::Client::new()
         .post(&format!("{}/users/register", &backend_address))
         .header("Content-Type", "application/json")
-        .body(
-            "{\"data\": {\"name\": \"test\", \"email\": \"test@test.test\", \"password\": \"test\"}}",
-        )
+        .body(r#"{"data": {"name": "test", "email": "test@test.test", "password": "test"}}"#)
         .send()
         .await
         .expect("Failed to execute request.");
@@ -78,12 +76,12 @@ async fn v1_users_register_is_200_for_valid_data<T: Future<Output = PgConnection
 }
 
 #[rstest]
-#[case::missing_email_and_password("{\"data\": {\"name\": \"test\"}}")]
-#[case::missing_name_and_password("{\"data\": {\"email\": \"test%40test.test\"}}")]
-#[case::missing_name_and_email("{\"data\": {\"password\": \"test\"}}")]
-#[case::missing_password("{\"data\": {\"name\": \"test_user\", \"email\": \"test%40test.test\"}}")]
-#[case::missing_email("{\"data\": {\"name\": \"test_user\", \"password\": \"test\"}}")]
-#[case::missing_name("{\"data\": {\"password\": \"test\", \"email\": \"test%40test.test\"}}")]
+#[case::missing_email_and_password(r#"{"data": {"name": "test"}}"#)]
+#[case::missing_name_and_password(r#"{"data": {"email": "test@test.test"}}"#)]
+#[case::missing_name_and_email(r#"{"data": {"password": "test"}}"#)]
+#[case::missing_password(r#"{"data": {"name": "test_user", "email": "test@test.test"}}"#)]
+#[case::missing_email(r#"{"data": {"name": "test_user", "password": "test"}}"#)]
+#[case::missing_name(r#"{"data": {"email": "test@test.test", "password": "test"}}"#)]
 #[case::missing_all_fields("")]
 #[tokio::test]
 async fn v1_users_register_is_400_for_missing_data(
