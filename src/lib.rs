@@ -1,4 +1,5 @@
 pub mod config;
+pub mod crypto;
 pub mod routes;
 pub mod startup;
 

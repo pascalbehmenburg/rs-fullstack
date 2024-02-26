@@ -1,3 +1,4 @@
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use rs_fullstack::{get_config, run};
 use rstest::{fixture, rstest};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
@@ -119,4 +120,17 @@ async fn v1_users_register_is_400_for_missing_data(
         .expect("Failed to execute request.");
 
     assert_eq!(400, response.status().as_u16());
+}
+
+#[tokio::test]
+async fn crypto_hash_password_is_correct() {
+    let uuid = Uuid::new_v4();
+    let password = uuid.as_bytes();
+
+    let password_hash = rs_fullstack::crypto::hash_password(password).await;
+    let parsed_hash = PasswordHash::new(&password_hash).expect("Failed to parse password hash.");
+
+    assert!(Argon2::default()
+        .verify_password(password, &parsed_hash)
+        .is_ok());
 }

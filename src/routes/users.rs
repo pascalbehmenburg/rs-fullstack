@@ -1,5 +1,6 @@
-use crate::{Data, RegisterUser};
+use crate::{crypto::hash_password, Data, RegisterUser};
 use actix_web::{web, HttpResponse};
+
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -15,7 +16,7 @@ pub async fn user_register(
         Uuid::new_v4(),
         user.name,
         user.email,
-        user.password,
+        hash_password(user.data.password.as_bytes()).await,
     )
     .execute(connection.get_ref())
     .await
