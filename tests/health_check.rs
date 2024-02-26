@@ -1,11 +1,12 @@
 use rs_fullstack::{get_config, run};
 use rstest::{fixture, rstest};
-use sqlx::PgPool;
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use uuid::Uuid;
 
 struct BackendTestData {
     address: String,
-    pool_postgres: PgPool,
+    pg_pool: PgPool,
 }
 
 /// Used to spawn a backend app and receive its address for each
@@ -20,20 +21,41 @@ async fn backend() -> BackendTestData {
         .expect("Could not receive local address from listener.")
         .port();
 
-    let config = get_config().expect("Failed to read configuration.");
+    let mut config = get_config().expect("Failed to read configuration.");
 
-    let pool_postgres = PgPool::connect(&config.database.connection_string())
-        .await
-        .expect("Failed to connect to Postgres");
+    // create random database for each test and create a connection pool to it
+    let pg_pool = {
+        config.database.database_name = Uuid::new_v4().to_string();
 
-    let server = run(listener, pool_postgres.clone()).expect("Failed to bind address.");
+        let mut connection = PgConnection::connect(&config.database.connection_string_without_db())
+            .await
+            .expect("Failed to connect to Postgres");
 
-    // future starts immediately after spawning when not applying await
+        connection
+            .execute(format!(r#"CREATE DATABASE "{}";"#, config.database.database_name).as_str())
+            .await
+            .expect("Failed to create database.");
+
+        let pg_pool = PgPool::connect(&config.database.connection_string())
+            .await
+            .expect("Failed to connect to Postgres");
+
+        sqlx::migrate!("./migrations")
+            .run(&pg_pool)
+            .await
+            .expect("Failed to migrate the database.");
+
+        pg_pool
+    };
+
+    let server = run(listener, pg_pool.clone()).expect("Failed to bind address.");
+
+    // mem-dropping a spawned thread will execute it's future without propagating the result
     std::mem::drop(tokio::spawn(server));
 
     BackendTestData {
         address: format!("http://127.0.0.1:{}", port),
-        pool_postgres: pool_postgres,
+        pg_pool: pg_pool,
     }
 }
 
@@ -66,7 +88,7 @@ async fn v1_users_register_is_200_for_valid_data(#[future] backend: BackendTestD
     assert!(200 == response.status().as_u16());
 
     let saved = sqlx::query!("SELECT name, email FROM users")
-        .fetch_one(&backend.pool_postgres)
+        .fetch_one(&backend.pg_pool)
         .await
         .expect("Failed to fetch saved subscription");
 
