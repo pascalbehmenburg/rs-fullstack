@@ -1,8 +1,7 @@
-# configuration.yaml
 application_port: 8000
 database:
-host: "127.0.0.1"
-port: 5432
-username: "postgres"
-password: "password"
-database_name: "rsfullstack"
+  username: "postgres"
+  password: "password"
+  port: 5432
+  host: "127.0.0.1"
+  database_name: "rsfullstack"

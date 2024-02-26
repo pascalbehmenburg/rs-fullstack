@@ -1,46 +1,48 @@
 use rs_fullstack::{get_config, run};
 use rstest::{fixture, rstest};
-use sqlx::{Connection, PgConnection};
-use std::future::Future;
+use sqlx::PgPool;
 use std::net::TcpListener;
+
+struct BackendTestData {
+    address: String,
+    pool_postgres: PgPool,
+}
 
 /// Used to spawn a backend app and receive its address for each
 /// test without having to explicitly use an async context.
 #[fixture]
-fn backend_address() -> String {
+async fn backend() -> BackendTestData {
     // port 0 will be resolved by the os which will return a somewhat random port which is not in use.
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
 
     let port = listener
         .local_addr()
         .expect("Could not receive local address from listener.")
         .port();
 
-    let server = run(listener).expect("Failed to bind address");
+    let config = get_config().expect("Failed to read configuration.");
+
+    let pool_postgres = PgPool::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    let server = run(listener, pool_postgres.clone()).expect("Failed to bind address.");
 
     // future starts immediately after spawning when not applying await
     std::mem::drop(tokio::spawn(server));
 
-    format!("http://127.0.0.1:{}", port)
-}
-
-#[fixture]
-async fn postgres_connection() -> PgConnection {
-    PgConnection::connect(
-        &get_config()
-            .expect("Failed to read config.")
-            .database
-            .connection_string(),
-    )
-    .await
-    .expect("Failed to connect to Postgres")
+    BackendTestData {
+        address: format!("http://127.0.0.1:{}", port),
+        pool_postgres: pool_postgres,
+    }
 }
 
 #[rstest]
+#[awt]
 #[tokio::test]
-async fn health_check_works(backend_address: String) {
+async fn health_check_works(#[future] backend: BackendTestData) {
     let response = reqwest::Client::new()
-        .get(&format!("{}/health_check", &backend_address))
+        .get(&format!("{}/health_check", &backend.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -52,12 +54,9 @@ async fn health_check_works(backend_address: String) {
 #[rstest]
 #[awt]
 #[tokio::test]
-async fn v1_users_register_is_200_for_valid_data<T: Future<Output = PgConnection>>(
-    backend_address: String,
-    mut postgres_connection: T,
-) {
+async fn v1_users_register_is_200_for_valid_data(#[future] backend: BackendTestData) {
     let response = reqwest::Client::new()
-        .post(&format!("{}/users/register", &backend_address))
+        .post(&format!("{}/users/register", &backend.address))
         .header("Content-Type", "application/json")
         .body(r#"{"data": {"name": "test", "email": "test@test.test", "password": "test"}}"#)
         .send()
@@ -67,7 +66,7 @@ async fn v1_users_register_is_200_for_valid_data<T: Future<Output = PgConnection
     assert!(200 == response.status().as_u16());
 
     let saved = sqlx::query!("SELECT name, email FROM users")
-        .fetch_one(&mut postgres_connection.await)
+        .fetch_one(&backend.pool_postgres)
         .await
         .expect("Failed to fetch saved subscription");
 
@@ -81,15 +80,16 @@ async fn v1_users_register_is_200_for_valid_data<T: Future<Output = PgConnection
 #[case::missing_name_and_email(r#"{"data": {"password": "test"}}"#)]
 #[case::missing_password(r#"{"data": {"name": "test_user", "email": "test@test.test"}}"#)]
 #[case::missing_email(r#"{"data": {"name": "test_user", "password": "test"}}"#)]
-#[case::missing_name(r#"{"data": {"email": "test@test.test", "password": "test"}}"#)]
+#[case::missing_name(r#"{"data": {"email": "test@test.test", "password": "test", }}"#)]
 #[case::missing_all_fields("")]
+#[awt]
 #[tokio::test]
 async fn v1_users_register_is_400_for_missing_data(
-    backend_address: String,
+    #[future] backend: BackendTestData,
     #[case] invalid_body: String,
 ) {
     let response = reqwest::Client::new()
-        .post(&format!("{}/users/register", &backend_address))
+        .post(&format!("{}/users/register", &backend.address))
         .header("Content-Type", "application/json")
         .body(invalid_body)
         .send()

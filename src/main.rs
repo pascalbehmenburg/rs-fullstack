@@ -1,5 +1,6 @@
 use rs_fullstack::config::get_config;
 use rs_fullstack::startup;
+use sqlx::PgPool;
 use std::net::TcpListener;
 
 // TODO implement user
@@ -13,7 +14,13 @@ use std::net::TcpListener;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let config = get_config().expect("Failed to read configuration.");
+
     let address = format!("127.0.0.1:{}", config.application_port);
     let listener = TcpListener::bind(address)?;
-    startup::run(listener)?.await
+
+    let pg_connection = PgPool::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    startup::run(listener, pg_connection)?.await
 }
