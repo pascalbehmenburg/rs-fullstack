@@ -11,7 +11,7 @@ async fn main() -> std::io::Result<()> {
 
     let config = get_config().expect("failed to read configuration");
 
-    let address = format!("127.0.0.1:{}", config.application_port);
+    let address = format!("{}:{}", config.application.host, config.application.port);
     let listener = TcpListener::bind(address)?;
 
     let pg_connection = PgPool::connect(config.database.connection_string().expose_secret())
