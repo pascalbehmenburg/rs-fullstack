@@ -15,9 +15,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: |
-        sudo apt install mold
-
-        cargo test
+          sudo apt install mold
+          cargo test
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
