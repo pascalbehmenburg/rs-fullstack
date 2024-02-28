@@ -16,7 +16,7 @@ jobs:
       - name: Run tests
         run: |
           sudo apt install mold
-          cargo test
+          SQLX_OFFLINE=true cargo test
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
