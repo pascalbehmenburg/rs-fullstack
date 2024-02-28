@@ -1,5 +1,5 @@
-use rs_fullstack::startup;
-use rs_fullstack::{config::get_config, telemetry::init_subscriber};
+use rsfullstack::startup;
+use rsfullstack::{config::get_config, telemetry::init_subscriber};
 use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;

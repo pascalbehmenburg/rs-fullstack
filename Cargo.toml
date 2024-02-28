@@ -1,5 +1,5 @@
 [package]
-name = "rs-fullstack"
+name = "rsfullstack"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -9,7 +9,7 @@ path = "src/lib.rs"
 
 [[bin]]
 path = "src/main.rs"
-name = "rs-fullstack"
+name = "rsfullstack"
 
 [dependencies]
 actix-web = "4.5.1"

@@ -1,5 +1,5 @@
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use rs_fullstack::{get_config, run, telemetry::init_subscriber};
+use rsfullstack::{get_config, run, telemetry::init_subscriber};
 use rstest::{fixture, rstest};
 use secrecy::{ExposeSecret, Secret};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
@@ -141,7 +141,7 @@ async fn crypto_hash_password_is_correct() {
     let password = Secret::new(uuid.to_string());
 
     let password_hash =
-        rs_fullstack::crypto::hash_password(Secret::new(password.expose_secret().into()));
+        rsfullstack::crypto::hash_password(Secret::new(password.expose_secret().into()));
     let parsed_hash =
         PasswordHash::new(&password_hash.expose_secret()).expect("Failed to parse password hash.");
 
