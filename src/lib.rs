@@ -2,11 +2,14 @@ pub mod config;
 pub mod crypto;
 pub mod routes;
 pub mod startup;
+pub mod telemetry;
 
 use std::ops::Deref;
 
 pub use config::*;
 pub use routes::*;
+use secrecy::Secret;
+use serde::Deserialize;
 pub use startup::*;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -21,9 +24,9 @@ impl<T> Deref for Data<T> {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Deserialize, Debug)]
 pub struct RegisterUser {
     name: String,
     email: String,
-    password: String,
+    password: Secret<String>,
 }

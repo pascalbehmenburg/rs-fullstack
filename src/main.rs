@@ -1,26 +1,22 @@
-use rs_fullstack::config::get_config;
 use rs_fullstack::startup;
+use rs_fullstack::{config::get_config, telemetry::init_subscriber};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
-
-// TODO implement user
-//  TODO get /v1/users get current user
-//  TODO patch /v1/users patch provided user data
-//  TODO post /v1/users/login log in user
-//  TODO post /v1/users/register creates user
-
-// TODO implement todo
+use tracing::Level;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let config = get_config().expect("Failed to read configuration.");
+    init_subscriber(Level::INFO, "rs-fullstack".into());
+
+    let config = get_config().expect("failed to read configuration");
 
     let address = format!("127.0.0.1:{}", config.application_port);
     let listener = TcpListener::bind(address)?;
 
-    let pg_connection = PgPool::connect(&config.database.connection_string())
+    let pg_connection = PgPool::connect(config.database.connection_string().expose_secret())
         .await
-        .expect("Failed to connect to Postgres");
+        .expect("failed to connect to postgres");
 
     startup::run(listener, pg_connection)?.await
 }

@@ -1,9 +1,13 @@
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use rs_fullstack::{get_config, run};
+use rs_fullstack::{get_config, run, telemetry::init_subscriber};
 use rstest::{fixture, rstest};
+use secrecy::{ExposeSecret, Secret};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use std::net::TcpListener;
+use std::{net::TcpListener, sync::Once};
+use tracing::Level;
 use uuid::Uuid;
+
+static TEST_SUBSCRIBER: Once = Once::new();
 
 struct BackendTestData {
     address: String,
@@ -14,6 +18,10 @@ struct BackendTestData {
 /// test without having to explicitly use an async context.
 #[fixture]
 async fn backend() -> BackendTestData {
+    TEST_SUBSCRIBER.call_once(|| {
+        init_subscriber(Level::DEBUG, "test-rs-fullstack".into());
+    });
+
     // port 0 will be resolved by the os which will return a somewhat random port which is not in use.
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
 
@@ -28,16 +36,21 @@ async fn backend() -> BackendTestData {
     let pg_pool = {
         config.database.database_name = Uuid::new_v4().to_string();
 
-        let mut connection = PgConnection::connect(&config.database.connection_string_without_db())
-            .await
-            .expect("Failed to connect to Postgres");
+        let mut connection = PgConnection::connect(
+            &config
+                .database
+                .connection_string_without_db()
+                .expose_secret(),
+        )
+        .await
+        .expect("Failed to connect to Postgres");
 
         connection
             .execute(format!(r#"CREATE DATABASE "{}";"#, config.database.database_name).as_str())
             .await
             .expect("Failed to create database.");
 
-        let pg_pool = PgPool::connect(&config.database.connection_string())
+        let pg_pool = PgPool::connect(&config.database.connection_string().expose_secret())
             .await
             .expect("Failed to connect to Postgres");
 
@@ -55,7 +68,7 @@ async fn backend() -> BackendTestData {
     std::mem::drop(tokio::spawn(server));
 
     BackendTestData {
-        address: format!("http://127.0.0.1:{}", port),
+        address: format!("http://127.0.0.1:{}/api/v1", port),
         pg_pool: pg_pool,
     }
 }
@@ -125,12 +138,14 @@ async fn v1_users_register_is_400_for_missing_data(
 #[tokio::test]
 async fn crypto_hash_password_is_correct() {
     let uuid = Uuid::new_v4();
-    let password = uuid.as_bytes();
+    let password = Secret::new(uuid.to_string());
 
-    let password_hash = rs_fullstack::crypto::hash_password(password).await;
-    let parsed_hash = PasswordHash::new(&password_hash).expect("Failed to parse password hash.");
+    let password_hash =
+        rs_fullstack::crypto::hash_password(Secret::new(password.expose_secret().into()));
+    let parsed_hash =
+        PasswordHash::new(&password_hash.expose_secret()).expect("Failed to parse password hash.");
 
     assert!(Argon2::default()
-        .verify_password(password, &parsed_hash)
+        .verify_password(password.expose_secret().as_bytes(), &parsed_hash)
         .is_ok());
 }
