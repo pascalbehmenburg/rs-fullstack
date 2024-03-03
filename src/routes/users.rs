@@ -1,4 +1,7 @@
-use crate::{crypto::hash_password, Data, RegisterUser};
+use crate::{
+    crypto::hash_password,
+    domain::{Data, RegisterUser},
+};
 use actix_web::{web, HttpResponse};
 
 use secrecy::{ExposeSecret, Secret};
@@ -14,7 +17,7 @@ use uuid::Uuid;
     )
 )]
 pub async fn user_registration(
-    mut register_user_data: web::Json<Data<RegisterUser>>,
+    mut register_user_data: Data<RegisterUser>,
     pg_pool: web::Data<PgPool>,
 ) -> HttpResponse {
     register_user_data.data.password = hash_password(Secret::new(

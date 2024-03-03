@@ -94,7 +94,7 @@ async fn v1_users_register_is_200_for_valid_data(#[future] backend: BackendTestD
     let response = reqwest::Client::new()
         .post(&format!("{}/users/register", &backend.address))
         .header("Content-Type", "application/json")
-        .body(r#"{"data": {"name": "test", "email": "test@test.test", "password": "test"}}"#)
+        .body(r#"{"name": "test", "email": "test@test.test", "password": "test"}"#)
         .send()
         .await
         .expect("Failed to execute request.");
@@ -111,12 +111,12 @@ async fn v1_users_register_is_200_for_valid_data(#[future] backend: BackendTestD
 }
 
 #[rstest]
-#[case::missing_email_and_password(r#"{"data": {"name": "test"}}"#)]
-#[case::missing_name_and_password(r#"{"data": {"email": "test@test.test"}}"#)]
-#[case::missing_name_and_email(r#"{"data": {"password": "test"}}"#)]
-#[case::missing_password(r#"{"data": {"name": "test_user", "email": "test@test.test"}}"#)]
-#[case::missing_email(r#"{"data": {"name": "test_user", "password": "test"}}"#)]
-#[case::missing_name(r#"{"data": {"email": "test@test.test", "password": "test", }}"#)]
+#[case::missing_email_and_password(r#"{"name": "test"}"#)]
+#[case::missing_name_and_password(r#"{"email": "test@test.test"}"#)]
+#[case::missing_name_and_email(r#"{"password": "test"}"#)]
+#[case::missing_password(r#"{"name": "test_user", "email": "test@test.test"}"#)]
+#[case::missing_email(r#"{"name": "test_user", "password": "test"}"#)]
+#[case::missing_name(r#"{"email": "test@test.test", "password": "test"}"#)]
 #[case::missing_all_fields("")]
 #[awt]
 #[tokio::test]
