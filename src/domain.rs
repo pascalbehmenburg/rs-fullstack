@@ -73,15 +73,14 @@ impl Sanitize for UpdateUser {
     }
 }
 
-/// Returns an instance of `SubscriberName` if the input satisfies all
-/// our validation constraints on subscriber names.
-/// It panics otherwise.
-pub fn sanitize_username(s: String) -> String {
-    // `.trim()` returns a view over the input `s` without trailing
-    // whitespace-like characters.
-    // `.is_empty` checks if the view contains any character.
-    let is_empty_or_whitespace = s.trim().is_empty();
+/// Returns `true` if the input contains any sql escape characters.
+pub fn contains_sql_escape_chars(input: &str) -> bool {
+    let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
+    input.chars().any(|c| forbidden_characters.contains(&c))
+}
 
+/// Returns `true` if the input has more graphemes than `max_length`.
+pub fn has_max_length(input: &str, max_length: usize) -> bool {
     // A grapheme is defined by the Unicode standard as a "user-perceived"
     // character: `å` is a single grapheme, but it is composed of two characters
     // (`a` and `̊`).
@@ -89,19 +88,32 @@ pub fn sanitize_username(s: String) -> String {
     // `graphemes` returns an iterator over the graphemes in the input `s`.
     // `true` specifies that we want to use the extended grapheme definition set,
     // the recommended one.
-    let is_too_long = s.graphemes(true).count() > 256;
+    input.graphemes(true).count() <= max_length
+}
 
-    // Iterate over all characters in the input `s` to check if any of them
-    // matches one of the characters in the forbidden array.
-    let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
-    let contains_forbidden_characters = s.chars().any(|g| forbidden_characters.contains(&g));
-    if is_empty_or_whitespace || is_too_long || contains_forbidden_characters {
-        panic!("{} is not a valid subscriber name.", s)
+/// Returns `true` if the input is empty or contains only whitespace characters.
+pub fn is_empty_or_whitespace(s: &str) -> bool {
+    s.trim().is_empty()
+}
+
+/// Returns an instance of `SubscriberName` if the input satisfies all
+/// our validation constraints on subscriber names.
+pub fn sanitize_username(username: String) -> String {
+    if is_empty_or_whitespace(&username)
+        || !has_max_length(&username, 256)
+        || contains_sql_escape_chars(&username)
+    {
+        panic!("{} is not a valid subscriber name.", username)
     } else {
-        s
+        username
     }
 }
 
-pub fn sanitize_email(s: String) -> String {
-    s.trim().to_lowercase()
+/// Returns an instance of `EmailAddress` if the input satisfies all our validation
+/// constraints on email addresses.
+pub fn sanitize_email(email: String) -> String {
+    if !has_max_length(&email, 256) {
+        panic!("{} is not a valid email.", email)
+    }
+    email.trim().to_lowercase()
 }
