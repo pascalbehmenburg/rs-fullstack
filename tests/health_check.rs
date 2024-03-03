@@ -111,6 +111,20 @@ async fn v1_users_register_is_200_for_valid_data(#[future] backend: BackendTestD
 }
 
 #[rstest]
+#[awt]
+#[tokio::test]
+#[should_panic]
+async fn v1_users_register_is_400_for_invalid_data(#[future] backend: BackendTestData) {
+    let response = reqwest::Client::new()
+        .post(&format!("{}/users/register", &backend.address))
+        .header("Content-Type", "application/json")
+        .body(r#"{"name": "te/;<st", "email": "test@TEST.test", "password": "test"}"#)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+}
+
+#[rstest]
 #[case::missing_email_and_password(r#"{"name": "test"}"#)]
 #[case::missing_name_and_password(r#"{"email": "test@test.test"}"#)]
 #[case::missing_name_and_email(r#"{"password": "test"}"#)]

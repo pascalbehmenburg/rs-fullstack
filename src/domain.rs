@@ -73,10 +73,11 @@ impl Sanitize for UpdateUser {
     }
 }
 
+static FORBIDDEN_CHARACTERS: &[char] = &['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
+
 /// Returns `true` if the input contains any sql escape characters.
 pub fn contains_sql_escape_chars(input: &str) -> bool {
-    let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
-    input.chars().any(|c| forbidden_characters.contains(&c))
+    input.chars().any(|c| FORBIDDEN_CHARACTERS.contains(&c))
 }
 
 /// Returns `true` if the input has more graphemes than `max_length`.
@@ -116,4 +117,48 @@ pub fn sanitize_email(email: String) -> String {
         panic!("{} is not a valid email.", email)
     }
     email.trim().to_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    fn test_contains_sql_escape_chars() {
+        assert!(FORBIDDEN_CHARACTERS
+            .iter()
+            .all(|c| contains_sql_escape_chars(&c.to_string())))
+    }
+
+    #[rstest]
+    #[case::with_graphemes("🦀".repeat(256), 256)]
+    #[case::with_ascii("a".repeat(256), 256)]
+    fn test_has_max_length(#[case] input: String, #[case] max_length: usize) {
+        assert!(has_max_length(&input, max_length));
+    }
+
+    #[rstest]
+    #[case::with_graphemes("🦀".repeat(257), 256)]
+    #[case::with_ascii("a".repeat(257), 256)]
+    fn test_has_max_length_exceeded(#[case] input: String, #[case] max_length: usize) {
+        assert!(!has_max_length(&input, max_length));
+    }
+
+    #[rstest]
+    #[case::empty("")]
+    #[case::whitespace(" ")]
+    #[case::tab("\t")]
+    #[case::newline("\n")]
+    fn test_is_empty_or_whitespace(#[case] input: String) {
+        assert!(is_empty_or_whitespace(&input));
+    }
+
+    #[rstest]
+    #[case::ascii("a")]
+    #[case::grapheme("🦀")]
+    fn test_is_not_empty_or_whitespace(#[case] input: String) {
+        assert!(!is_empty_or_whitespace(&input));
+    }
 }
