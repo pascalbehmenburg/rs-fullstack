@@ -80,8 +80,8 @@ pub fn contains_sql_escape_chars(input: &str) -> bool {
     input.chars().any(|c| FORBIDDEN_CHARACTERS.contains(&c))
 }
 
-/// Returns `true` if the input has more graphemes than `max_length`.
-pub fn has_max_length(input: &str, max_length: usize) -> bool {
+/// Returns `true` if the input is longer than max_length.
+pub fn is_too_long(input: &str, max_length: usize) -> bool {
     // A grapheme is defined by the Unicode standard as a "user-perceived"
     // character: `å` is a single grapheme, but it is composed of two characters
     // (`a` and `̊`).
@@ -89,7 +89,7 @@ pub fn has_max_length(input: &str, max_length: usize) -> bool {
     // `graphemes` returns an iterator over the graphemes in the input `s`.
     // `true` specifies that we want to use the extended grapheme definition set,
     // the recommended one.
-    input.graphemes(true).count() <= max_length
+    input.graphemes(true).count() > max_length
 }
 
 /// Returns `true` if the input is empty or contains only whitespace characters.
@@ -97,25 +97,32 @@ pub fn is_empty_or_whitespace(s: &str) -> bool {
     s.trim().is_empty()
 }
 
+/// Checks whether the input is empty, has a max length of 256
+/// and does not contain sql escape chars
+pub fn is_valid_text_input(input: &str) -> bool {
+    !is_empty_or_whitespace(&input)
+        && !is_too_long(&input, 256)
+        && !contains_sql_escape_chars(&input)
+}
+
 /// Returns an instance of `SubscriberName` if the input satisfies all
 /// our validation constraints on subscriber names.
 pub fn sanitize_username(username: String) -> String {
-    if is_empty_or_whitespace(&username)
-        || !has_max_length(&username, 256)
-        || contains_sql_escape_chars(&username)
-    {
+    if !is_valid_text_input(&username) {
         panic!("{} is not a valid subscriber name.", username)
-    } else {
-        username
     }
+
+    username.trim().into()
 }
 
 /// Returns an instance of `EmailAddress` if the input satisfies all our validation
 /// constraints on email addresses.
 pub fn sanitize_email(email: String) -> String {
-    if !has_max_length(&email, 256) {
+    if !email.contains("@") || !is_valid_text_input(&email) {
         panic!("{} is not a valid email.", email)
     }
+
+    // normalize
     email.trim().to_lowercase()
 }
 
@@ -135,15 +142,15 @@ mod tests {
     #[rstest]
     #[case::with_graphemes("🦀".repeat(256), 256)]
     #[case::with_ascii("a".repeat(256), 256)]
-    fn test_has_max_length(#[case] input: String, #[case] max_length: usize) {
-        assert!(has_max_length(&input, max_length));
+    fn test_is_not_too_long(#[case] input: String, #[case] max_length: usize) {
+        assert!(!is_too_long(&input, max_length));
     }
 
     #[rstest]
     #[case::with_graphemes("🦀".repeat(257), 256)]
     #[case::with_ascii("a".repeat(257), 256)]
-    fn test_has_max_length_exceeded(#[case] input: String, #[case] max_length: usize) {
-        assert!(!has_max_length(&input, max_length));
+    fn test_has_is_too_long(#[case] input: String, #[case] max_length: usize) {
+        assert!(is_too_long(&input, max_length));
     }
 
     #[rstest]
