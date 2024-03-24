@@ -1,7 +1,4 @@
-use crate::{
-    crypto::hash_password,
-    domain::{Data, RegisterUser},
-};
+use crate::{crypto::hash_password, domain::data::Data, domain::user::RegisterUser};
 use actix_web::{web, HttpResponse};
 
 use secrecy::{ExposeSecret, Secret};

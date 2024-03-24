@@ -2,10 +2,10 @@
 rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+rustflags = ["-Z", "threads=24", "-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-gnu]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+rustflags = ["-Z", "threads=24", "-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
