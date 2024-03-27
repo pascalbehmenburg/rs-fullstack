@@ -1,5 +1,7 @@
 use unicode_segmentation::UnicodeSegmentation;
 
+use validator::ValidateEmail;
+
 static FORBIDDEN_CHARACTERS: &[char] = &['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
 
 /// Implement this trait for any data which is send to the API and ensure it is safe to use.
@@ -48,7 +50,7 @@ pub fn sanitize_username(username: String) -> String {
 /// Returns an instance of `EmailAddress` if the input satisfies all our validation
 /// constraints on email addresses.
 pub fn sanitize_email(email: String) -> String {
-    if !email.contains('@') || !is_valid_text_input(&email) {
+    if !is_valid_text_input(&email) || !email.validate_email() {
         panic!("{} is not a valid email.", email)
     }
 
